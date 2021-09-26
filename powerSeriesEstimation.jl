@@ -2,10 +2,10 @@ using ProgressMeter
 using Formatting
 
 #define constants for the equation: (gamma * x^2 + beta*x + alpha)*y' + lambda*y = f(x)
-alpha = 0.2
-beta = 0.0
-gamma = 0.0
-lambda = 1 
+alpha = 1
+beta = 1
+gamma = 1
+lambda = 1
 
 #define c_n to be the nth coefficient of the power seies for f(x)
 function c_n(n) 
@@ -14,8 +14,23 @@ function c_n(n)
     
     """
 
-    #currently ln(1+x), if statement to remove issues with divide by 0
-    1/factorial(big(n))
+    # sin(x)
+    # if n % 2 == 0
+    #     return ((-1)^n)/(factorial(big(2n)))
+    # else
+    #     return 0
+    # end
+
+    # ln(x+1)
+    # if n == 0
+    #     return 0 
+    # else
+    #     return ((-1)^(n+1))/n
+    # end
+
+    #e^x
+    return 1/factorial(big(n))
+
 end
 
 #when writing this, a_{-1} will be 0 and a_0 will be an initial condition
@@ -50,7 +65,7 @@ function a_n(n, a_n2, a_n1)
 end
 
 #function that prints string that desmos can interpret 
-function to_desmos(coefficients, bounds, shift=0)
+function to_desmos(coefficients, bounds, shift=0.0)
     """
     Return string that represents equation desmos can read. Shift is shift of power series
 
@@ -61,9 +76,25 @@ function to_desmos(coefficients, bounds, shift=0)
     #loop through all the degrees of the power series
     for i in 1:length(coefficients)
         if i == 1
-            equationString = equationString * (format(convert(Float64, coefficients[i])) * " + ") #if we are looking at the x^0 term, simply add the first coefficient without x^n
+            coefficientValue = convert(Float64, coefficients[i])
+            # if isnan(coefficientValue)
+            #     coefficientValue = 0
+            # elseif isinf(coefficientValue) && coefficientValue > 0 
+            #     coefficientValue = big(10)^(100) #make something arbitrarily high 
+            # elseif isinf(coefficientValue) && coefficientValue < 0
+            #     coefficientValue = -(big(10)^(100)) #same for negative infinity
+            # end
+            equationString = equationString * (format(coefficientValue) * " + ") #if we are looking at the x^0 term, simply add the first coefficient without x^n
         else
-            equationString = equationString * (format(convert(Float64, coefficients[i])) * "(x-$shift)^{" * string(i-1) * "} + " ) #else add the coefficient in front of an x^n term
+            coefficientValue = convert(Float64, coefficients[i])
+            # if isnan(coefficientValue)
+            #     coefficientValue = 0
+            # elseif isinf(coefficientValue) && coefficientValue > 0 
+            #     coefficientValue = big(10)^(100) #make something arbitrarily high 
+            # elseif isinf(coefficientValue) && coefficientValue < 0
+            #     coefficientValue = -(big(10)^(100)) #same for negative infinity
+            # end
+            equationString = equationString * (format(coefficientValue) * "(x-$shift)^{" * string(i-1) * "} + " ) #else add the coefficient in front of an x^n term
         end
     end
 
@@ -163,7 +194,14 @@ function analytically_continued_function(lastCoefficients, shift, nMax=1000)
         #calculate j-1th coefficient (-1 as Julia does 1 indexing for who knows why)
         coefficient = float(0) #blank float to add from sum to
         for n in j:length(lastCoefficients) #loop through to make sum, go to length of last coefficients as this is only what I have a_n defined for... This is really inefficient, but I am lazy right now
-            coefficient += lastCoefficients[n] * binomial(big(n-1), big(j-1)) * shift^(n-j)
+            nextValueSum = lastCoefficients[n] * binomial(big(n-1), big(j-1)) * shift^(n-j)
+            # if isnan(nextValueSum)
+            #     println("Found NaN: n=$n j=$j coefficient=$(lastCoefficients[n])")
+            #     sleep(10)
+            #     nextValueSum = 0
+            # end
+
+            coefficient += nextValueSum
         
         end
         push!(newCoefficients, (convert(Float64, coefficient))) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
@@ -244,12 +282,10 @@ initialA = 2
 #list of all analytic continuations of y. Each entry is a tuple with (offset, coefficients)
 continuations = [(float(0), find_coefficients(1000, initialA))] #start with initial power series as only item
 
-#just calculate these for one and use same values throughout
-lastConvervenceRadius = abs(radius_of_convergence(last(continuations)[2]))
-distanceOfShift = round(lastConvervenceRadius*0.8, digits=10) #shift by some multiple, below 1, of convergence radius
 
 for x in 1:3 #run this a certain number of times to get that many continuations of y
-    global distanceOfShift
+    lastConvervenceRadius = abs(radius_of_convergence(last(continuations)[2]))
+    distanceOfShift = round(lastConvervenceRadius*0.8, digits=10) #shift by some multiple, below 1, of convergence radius
     continuedCoefficients = analytically_continued_function(last(continuations)[2], distanceOfShift) 
     shiftAndCoefficients = (distanceOfShift, continuedCoefficients)
     push!(continuations, shiftAndCoefficients)
@@ -261,16 +297,21 @@ desmosBounds = [] #list to hold all upper and lower bounds
 currentIndex = 1 #temp variable to keep track of index in following for loop
 for continuation in continuations
     global currentIndex
-    global distanceOfShift
     push!(totalShifts, sum_shifts(continuations[1:currentIndex])) #add totalShift of each function to list 
+    currentIndex += 1
+end
+
+currentIndex = 1 #temp variable to keep track of index in following for loop
+for continuation in continuations
+    global currentIndex
 
     if currentIndex == lastindex(continuations)
         upperBound = 1000 #arbitrarily high upper bound on last power series
     else
-        upperBound = last(totalShifts) + distanceOfShift #set upperbound of the lower bound plus the shift
+        upperBound = totalShifts[currentIndex] + totalShifts[currentIndex+1] #set upperbound of the lower bound plus the shift
     end
     
-    push!(desmosBounds, (last(totalShifts), upperBound)) #add lower and upper bounds to bounds list
+    push!(desmosBounds, (totalShifts[currentIndex], upperBound)) #add lower and upper bounds to bounds list
 
     if (currentIndex != 1) #if the current index isn't one, reset y shift
 
@@ -278,7 +319,7 @@ for continuation in continuations
         previousCoefficients = previousTuple[2] #get just coefficients
 
 
-        yShift = evaluate_power_series(continuations[currentIndex-1][2], last(totalShifts) ) #calculate actual y shift of power series 
+        yShift = evaluate_power_series(continuations[currentIndex-1][2], totalShifts[currentIndex] ) #calculate actual y shift of power series 
 
         previousCoefficients[1] = yShift
 
