@@ -2,8 +2,8 @@ using ProgressMeter
 
 #define constants for the equation: (gamma * x^2 + beta*x + alpha)*y' + lambda*y = f(x)
 alpha = 0.2
-beta = 0.4
-gamma = 0.6
+beta = 0.0
+gamma = 0.0
 lambda = 1 
 
 #define c_n to be the nth coefficient of the power seies for f(x)
@@ -167,11 +167,11 @@ function analytically_continued_function(lastCoefficients, shift, nMax=1000)
         coefficient = float(0) #blank float to add from sum to
         for n in j:length(lastCoefficients) #loop through to make sum, go to length of last coefficients as this is only what I have a_n defined for... This is really inefficient, but I am lazy right now
             coefficient += lastCoefficients[n] * binomial(big(n-1), big(j-1)) * shift^(n-j)
-
-        push!(newCoefficients, round(convert(Float64, coefficient), digits=10)) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits 
         
         end
+        push!(newCoefficients, round(convert(Float64, coefficient), digits=10)) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
     end
+    println((length(newCoefficients)))
     newCoefficients
 end
 
@@ -254,7 +254,7 @@ distanceOfShift = round(lastConvervenceRadius*0.5, digits=10) #shift by some mul
 
 for x in 1:3 #run this a certain number of times to get that many continuations of y
     global distanceOfShift
-    continuedCoefficients = analytically_continued_function(last(continuations)[2], distanceOfShift, 1000) 
+    continuedCoefficients = analytically_continued_function(last(continuations)[2], distanceOfShift) 
     shiftAndCoefficients = (distanceOfShift, continuedCoefficients)
     push!(continuations, shiftAndCoefficients)
 end
