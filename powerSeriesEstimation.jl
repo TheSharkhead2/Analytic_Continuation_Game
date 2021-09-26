@@ -1,4 +1,5 @@
 using ProgressMeter
+using Formatting
 
 #define constants for the equation: (gamma * x^2 + beta*x + alpha)*y' + lambda*y = f(x)
 alpha = 0.2
@@ -14,11 +15,7 @@ function c_n(n)
     """
 
     #currently ln(1+x), if statement to remove issues with divide by 0
-    if n != 0
-        return ((-1)^(n+1))/n
-    else
-        return 0
-    end
+    1/factorial(big(n))
 end
 
 #when writing this, a_{-1} will be 0 and a_0 will be an initial condition
@@ -64,9 +61,9 @@ function to_desmos(coefficients, bounds, shift=0)
     #loop through all the degrees of the power series
     for i in 1:length(coefficients)
         if i == 1
-            equationString = equationString * (string(convert(Float64, coefficients[i])) * " + ") #if we are looking at the x^0 term, simply add the first coefficient without x^n
+            equationString = equationString * (format(convert(Float64, coefficients[i])) * " + ") #if we are looking at the x^0 term, simply add the first coefficient without x^n
         else
-            equationString = equationString * (string(convert(Float64, coefficients[i])) * "(x-$shift)^{" * string(i-1) * "} + " ) #else add the coefficient in front of an x^n term
+            equationString = equationString * (format(convert(Float64, coefficients[i])) * "(x-$shift)^{" * string(i-1) * "} + " ) #else add the coefficient in front of an x^n term
         end
     end
 
@@ -115,7 +112,7 @@ function find_coefficients(nMax, a_0)
         a_last = last(listOfCoefficients)
 
         #calculate the coefficient a_{n+1} and append it to list of coefficients
-        push!(listOfCoefficients, round(a_n(j, a_negative1, a_last), digits=10))
+        push!(listOfCoefficients, (a_n(j, a_negative1, a_last)))
 
     end
     listOfCoefficients
@@ -169,9 +166,8 @@ function analytically_continued_function(lastCoefficients, shift, nMax=1000)
             coefficient += lastCoefficients[n] * binomial(big(n-1), big(j-1)) * shift^(n-j)
         
         end
-        push!(newCoefficients, round(convert(Float64, coefficient), digits=10)) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
+        push!(newCoefficients, (convert(Float64, coefficient))) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
     end
-    println((length(newCoefficients)))
     newCoefficients
 end
 
@@ -244,13 +240,13 @@ end
 
 #list of coefficients represents power series for y in (alpha + beta*x + gamma*x^2)*y' + lambda*y = f(x) 
 
-initialA = 1
+initialA = 2
 #list of all analytic continuations of y. Each entry is a tuple with (offset, coefficients)
 continuations = [(float(0), find_coefficients(1000, initialA))] #start with initial power series as only item
 
 #just calculate these for one and use same values throughout
 lastConvervenceRadius = abs(radius_of_convergence(last(continuations)[2]))
-distanceOfShift = round(lastConvervenceRadius*0.5, digits=10) #shift by some multiple, below 1, of convergence radius
+distanceOfShift = round(lastConvervenceRadius*0.8, digits=10) #shift by some multiple, below 1, of convergence radius
 
 for x in 1:3 #run this a certain number of times to get that many continuations of y
     global distanceOfShift
