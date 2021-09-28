@@ -2,9 +2,9 @@ using ProgressMeter
 using Formatting
 
 #define constants for the equation: (gamma * x^2 + beta*x + alpha)*y' + lambda*y = f(x)
-alpha = 1
-beta = 1
-gamma = 1
+alpha = 0.2
+beta = 0.4
+gamma = 0.6
 lambda = 1
 
 #define c_n to be the nth coefficient of the power seies for f(x)
@@ -22,14 +22,14 @@ function c_n(n)
     # end
 
     # ln(x+1)
-    # if n == 0
-    #     return 0 
-    # else
-    #     return ((-1)^(n+1))/n
-    # end
+    if n == 0
+        return 0 
+    else
+        return ((-1)^(n+1))/n
+    end
 
     #e^x
-    return 1/factorial(big(n))
+    # return 1/factorial(big(n))
 
 end
 
@@ -60,7 +60,7 @@ function a_n(n, a_n2, a_n1)
     n = n - 1
 
     #calculate and return the a_{n+1} coefficient of the power series for y
-    1/(alpha*(n+1)) * (-1*(beta*n+lambda)*a_n1 - gamma*(n-1)*a_n2 + c_n(n))
+    BigFloat(1/(alpha*(n+1)) * (-1*(beta*n+lambda)*a_n1 - gamma*(n-1)*a_n2 + c_n(n)))
 
 end
 
@@ -73,10 +73,12 @@ function to_desmos(coefficients, bounds, shift=0.0)
     #define empty string to add all coefficients to x^n term for desmos
     equationString = ""
 
+    shift = round(convert(Float64, shift), digits=7) #round shift
+
     #loop through all the degrees of the power series
     for i in 1:length(coefficients)
         if i == 1
-            coefficientValue = convert(Float64, coefficients[i])
+            coefficientValue = round(convert(Float64, coefficients[i]), digits=7)
             # if isnan(coefficientValue)
             #     coefficientValue = 0
             # elseif isinf(coefficientValue) && coefficientValue > 0 
@@ -86,7 +88,7 @@ function to_desmos(coefficients, bounds, shift=0.0)
             # end
             equationString = equationString * (format(coefficientValue) * " + ") #if we are looking at the x^0 term, simply add the first coefficient without x^n
         else
-            coefficientValue = convert(Float64, coefficients[i])
+            coefficientValue = round(convert(Float64, coefficients[i]), digits=7)
             # if isnan(coefficientValue)
             #     coefficientValue = 0
             # elseif isinf(coefficientValue) && coefficientValue > 0 
@@ -100,7 +102,7 @@ function to_desmos(coefficients, bounds, shift=0.0)
 
     equationString = equationString[1:length(equationString)-2] #remove additional plus sign
 
-    equationString = equationString * "{" * string(bounds[1]) * " < x < " * string(bounds[2]) * "}" #add desmos bounds things
+    equationString = equationString * "{" * string(round(convert(Float64, bounds[1]), digits=7)) * " < x < " * string(round(convert(Float64, bounds[2]), digits=7)) * "}" #add desmos bounds things
 
     equationString #return the string 
 end
@@ -127,7 +129,7 @@ function find_coefficients(nMax, a_0)
     """
 
     #list of all the coefficients for the power series
-    listOfCoefficients = Any[float(a_0)]
+    listOfCoefficients = Any[BigFloat(a_0)]
 
     #loop through all the terms 
     for j in 1:nMax
@@ -165,7 +167,7 @@ function radius_of_convergence(coefficients)
     """
 
 
-    N = (convert(Float64, coefficients[lastindex(coefficients)]/coefficients[lastindex(coefficients)-1]))
+    N = (coefficients[lastindex(coefficients)]/coefficients[lastindex(coefficients)-1])
 
 end
 
@@ -204,7 +206,7 @@ function analytically_continued_function(lastCoefficients, shift, nMax=1000)
             coefficient += nextValueSum
         
         end
-        push!(newCoefficients, (convert(Float64, coefficient))) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
+        push!(newCoefficients, (coefficient)) #append new coefficient to list and convert to float64 (for ease of use) and  to 9 digits
     end
     newCoefficients
 end
@@ -238,7 +240,7 @@ function evaluate_power_series(powerSeriesCoefficients, x, numberOfTerms=20)
 
     xDegree = 0 #variable to keep track of degree for coefficient 
     
-    value = float(0) #variable to keep track of value of polynomial (will sum up all terms)
+    value = BigFloat(0) #variable to keep track of value of polynomial (will sum up all terms)
 
     for coefficient in powerSeriesCoefficients
         value += (coefficient * x^xDegree) #add to value
@@ -280,12 +282,12 @@ end
 
 initialA = 2
 #list of all analytic continuations of y. Each entry is a tuple with (offset, coefficients)
-continuations = [(float(0), find_coefficients(1000, initialA))] #start with initial power series as only item
+continuations = [(BigFloat(0), find_coefficients(1000, initialA))] #start with initial power series as only item
 
 
 for x in 1:3 #run this a certain number of times to get that many continuations of y
     lastConvervenceRadius = abs(radius_of_convergence(last(continuations)[2]))
-    distanceOfShift = round(lastConvervenceRadius*0.8, digits=10) #shift by some multiple, below 1, of convergence radius
+    distanceOfShift = (lastConvervenceRadius*0.8) #shift by some multiple, below 1, of convergence radius
     continuedCoefficients = analytically_continued_function(last(continuations)[2], distanceOfShift) 
     shiftAndCoefficients = (distanceOfShift, continuedCoefficients)
     push!(continuations, shiftAndCoefficients)
